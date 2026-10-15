@@ -1,0 +1,27 @@
+# Binaries & Executables
+bin/
+*.exe
+*.o
+*.obj
+*.pdb
+*.ilk
+
+# Test, Benchmark & Cache outputs
+tests/benchmark_data/
+tests/benchmark_results.json
+.supersearch_cache/
+*.ssch
+*.bak
+*.log
+report.txt
+report.json
+scratch_*.json
+scratch_*.txt
+
+# IDE & OS files
+.vscode/
+.vs/
+.idea/
+Thumbs.db
+[Dd]esktop.ini
+scratch/

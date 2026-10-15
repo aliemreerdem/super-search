@@ -1,0 +1,163 @@
+name: Release Binary Package
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Package Windows x64 Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Compile Release Binary
+        shell: cmd
+        run: build.bat
+
+      - name: Run Full E2E & Unit Test Suite
+        shell: pwsh
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tests\run_all_tests.ps1
+
+      - name: Package Release Archive
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path release_pkg\bin -Force | Out-Null
+          New-Item -ItemType Directory -Path release_pkg\.agents\skills\supersearch -Force | Out-Null
+          Copy-Item bin\supersearch.exe release_pkg\bin\
+          Copy-Item README.md, LICENSE, CONTRIBUTING.md, build.bat, Makefile release_pkg\
+          Copy-Item .agents\skills\supersearch\* release_pkg\.agents\skills\supersearch\ -Recurse -Force
+          Compress-Archive -Path release_pkg\* -DestinationPath supersearch-windows-x64.zip -Force
+
+      - name: Upload Release Asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows-x64
+          path: supersearch-windows-x64.zip
+
+  build-posix:
+    name: Package ${{ matrix.platform_label }} Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform_label: Linux x64 (x86_64)
+            make_cmd: make
+            archive_name: supersearch-linux-x64.tar.gz
+            artifact_name: release-linux-x64
+          - os: ubuntu-24.04-arm
+            platform_label: Linux ARM64 (aarch64)
+            make_cmd: make
+            archive_name: supersearch-linux-arm64.tar.gz
+            artifact_name: release-linux-arm64
+          - os: macos-latest
+            platform_label: macOS Apple Silicon (ARM64)
+            make_cmd: make
+            archive_name: supersearch-macos-arm64.tar.gz
+            artifact_name: release-macos-arm64
+          - os: macos-latest
+            platform_label: macOS Intel (x86_64)
+            make_cmd: make CC="clang -arch x86_64"
+            archive_name: supersearch-macos-x64.tar.gz
+            artifact_name: release-macos-x64
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Compile Release Binary
+        shell: bash
+        run: ${{ matrix.make_cmd }}
+
+      - name: Run Automated POSIX Test Suite
+        if: matrix.artifact_name != 'release-macos-x64'
+        shell: bash
+        run: |
+          chmod +x tests/run_posix_tests.sh
+          ./tests/run_posix_tests.sh
+
+      - name: Package Release Archive
+        shell: bash
+        run: |
+          mkdir -p release_pkg/bin
+          mkdir -p release_pkg/.agents/skills/supersearch
+          cp bin/supersearch release_pkg/bin/
+          cp README.md LICENSE CONTRIBUTING.md Makefile release_pkg/
+          cp -r .agents/skills/supersearch/* release_pkg/.agents/skills/supersearch/
+          tar -czf ${{ matrix.archive_name }} -C release_pkg .
+
+      - name: Upload Release Asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.archive_name }}
+
+  publish:
+    name: Publish Multi-Platform GitHub Release
+    needs: [build-windows, build-posix]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download All Release Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate SHA256 Checksums
+        shell: bash
+        run: |
+          cd dist
+          sha256sum supersearch-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "SuperSearch ${{ github.ref_name }} — Cross-Platform Release"
+          body: |
+            ## 🚀 SuperSearch ${{ github.ref_name }} — Pre-Built Platform Binaries
+
+            Download the ready-to-run archive for your operating system and CPU architecture below. Each archive includes the compiled `supersearch` binary, documentation, and the **AI Coding Agent Skill & MCP 2.0 Installer**.
+
+            | Operating System | Architecture | SIMD Acceleration | Download Package |
+            | :--- | :--- | :--- | :--- |
+            | **Windows 10 / 11 / Server** | `x86_64` (64-bit) | 256-bit AVX2 + Scalar Fallback | `supersearch-windows-x64.zip` |
+            | **Linux** | `x86_64` (64-bit) | 256-bit AVX2 + Scalar Fallback | `supersearch-linux-x64.tar.gz` |
+            | **Linux** | `ARM64` (`aarch64`) | 128-bit ARM NEON + Scalar | `supersearch-linux-arm64.tar.gz` |
+            | **macOS (Apple Silicon M1–M4)** | `ARM64` (`arm64`) | 128-bit ARM NEON + Scalar | `supersearch-macos-arm64.tar.gz` |
+            | **macOS (Intel)** | `x86_64` (64-bit) | 256-bit AVX2 + Scalar Fallback | `supersearch-macos-x64.tar.gz` |
+
+            ### Quick Install After Download
+            - **Windows (PowerShell):**
+              ```powershell
+              Expand-Archive supersearch-windows-x64.zip -DestinationPath supersearch
+              cd supersearch
+              powershell -NoProfile -ExecutionPolicy Bypass -File .agents\skills\supersearch\scripts\install-mcp.ps1 -AddToPath
+              ```
+            - **Linux & macOS (Bash/Zsh):**
+              ```bash
+              mkdir supersearch && tar -xzf supersearch-*.tar.gz -C supersearch
+              cd supersearch
+              chmod +x bin/supersearch .agents/skills/supersearch/scripts/install-mcp.sh
+              ./.agents/skills/supersearch/scripts/install-mcp.sh --add-to-path
+              ```
+          files: |
+            dist/supersearch-windows-x64.zip
+            dist/supersearch-linux-x64.tar.gz
+            dist/supersearch-linux-arm64.tar.gz
+            dist/supersearch-macos-arm64.tar.gz
+            dist/supersearch-macos-x64.tar.gz
+            dist/SHA256SUMS.txt
+          generate_release_notes: true

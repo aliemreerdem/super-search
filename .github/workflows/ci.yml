@@ -1,0 +1,78 @@
+name: CI Build & Test
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build & Test (Windows x64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Compile SuperSearch Binary
+        shell: cmd
+        run: build.bat
+
+      - name: Verify Binary Version & Help
+        shell: pwsh
+        run: |
+          .\bin\supersearch.exe --help
+          .\bin\supersearch.exe --type-list
+
+      - name: Run Automated E2E & C Unit Test Suite
+        shell: pwsh
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tests\run_all_tests.ps1
+
+      - name: Upload Compiled Binary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: supersearch-windows-x64
+          path: |
+            bin/supersearch.exe
+            README.md
+            LICENSE
+            .agents/skills/supersearch/
+
+  build-posix:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: supersearch-linux-x64
+          - os: macos-latest
+            artifact_name: supersearch-macos-arm64
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Compile SuperSearch Binary
+        shell: bash
+        run: make
+
+      - name: Run Automated POSIX Test Suite
+        shell: bash
+        run: |
+          chmod +x tests/run_posix_tests.sh
+          ./tests/run_posix_tests.sh
+
+      - name: Upload Compiled Binary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            bin/supersearch
+            README.md
+            LICENSE
+            .agents/skills/supersearch/
