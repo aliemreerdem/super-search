@@ -1,0 +1,23 @@
+{
+    "version": "2.6.0",
+    "description": "Ultra-fast cross-platform parallel code & symbol search engine in pure C (AVX2 & ARM NEON SIMD) with built-in MCP 2.0 server for AI coding agents.",
+    "homepage": "https://github.com/aliemreerdem/super-search",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/aliemreerdem/super-search/releases/download/v2.6.0/supersearch-windows-x64.zip",
+            "hash": "ff3eef6efe7c0ccaac5691bea452b1d5cf13a471cef2cb5ca0fd6b54ff4c89f9"
+        }
+    },
+    "bin": "bin\\supersearch.exe",
+    "checkver": {
+        "github": "https://github.com/aliemreerdem/super-search"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/aliemreerdem/super-search/releases/download/v$version/supersearch-windows-x64.zip"
+            }
+        }
+    }
+}

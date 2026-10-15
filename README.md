@@ -58,6 +58,18 @@ You can download pre-compiled binaries for your platform directly from the [**Gi
 | **macOS (Apple Silicon M1–M4)** | `ARM64` (`arm64`) | 128-bit ARM NEON + Scalar | [`supersearch-macos-arm64.tar.gz`](https://github.com/aliemreerdem/super-search/releases/latest/download/supersearch-macos-arm64.tar.gz) |
 | **macOS (Intel)** | `x86_64` (64-bit) | 256-bit AVX2 + Scalar | [`supersearch-macos-x64.tar.gz`](https://github.com/aliemreerdem/super-search/releases/latest/download/supersearch-macos-x64.tar.gz) |
 
+### One-Line Package Manager Install
+
+**Windows ([Scoop](https://scoop.sh/)):**
+```powershell
+scoop install https://raw.githubusercontent.com/aliemreerdem/super-search/main/packaging/scoop/supersearch.json
+```
+
+**macOS & Linux ([Homebrew](https://brew.sh/)):**
+```bash
+brew install --formula https://raw.githubusercontent.com/aliemreerdem/super-search/main/packaging/homebrew/supersearch.rb
+```
+
 ---
 
 ## 🛠️ Build from Source & Installation
